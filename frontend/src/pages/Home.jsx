@@ -33,14 +33,17 @@ export default function Home() {
                     <ShinyText />
                 </BlurFade>
                 <BlurFade delay={0.25 * 2}>
-                    <h1 className="text-8xl mt-8 mb-4 max-w-6xl pb-2 bg-gradient-to-br from-white to-gray-400 bg-clip-text text-transparent">Magic UI is the new way to build landing pages.</h1>
+                    <h1 className="text-8xl mt-8 mb-4 max-w-6xl pb-2 bg-gradient-to-br from-white to-gray-400 bg-clip-text text-transparent">Master your interviews with AI-powered practice.</h1>
                 </BlurFade>
                 <BlurFade delay={0.25 * 3}>
-                    <p className="text-xl max-w-2xl mb-8 text-gray-400 font-normal">Beautifully designed, animated components and templates built with Tailwind CSS, React, and Framer Motion.</p>
+                    <p className="text-xl max-w-2xl mb-8 text-gray-400 font-normal">Our intelligent agents adapt to your target company and role, providing realistic interview scenarios that build confidence and sharpen your skills in a fun, stress-free environment.</p>
                 </BlurFade>
                 <BlurFade delay={0.25 * 4}>
-                    <Button className="cursor-pointer bg-white text-black hover:bg-gray-200 mb-32">
-                        Get Started For Free <ArrowRight className="ml-2"/>
+                    <Button 
+                        className="cursor-pointer bg-white text-black hover:bg-gray-200 mb-32"
+                        onClick={() => window.location.href = '/start'}
+                    >
+                        Create Your Interview Agent <ArrowRight className="ml-2"/>
                     </Button>
                 </BlurFade>
                 <BlurFade delay={0.25 * 3} direction="up" duration={0.6}>
