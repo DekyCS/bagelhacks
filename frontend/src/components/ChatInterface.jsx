@@ -1,40 +1,27 @@
 import React from 'react';
-import { Html } from "@react-three/drei";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Send, Trash2 } from 'lucide-react';
 
-function ChatInputPanel({ sceneFocus, messageInput, setMessageInput }) {
+const ChatInterface = ({ messageInput, setMessageInput }) => {
   return (
-    <Html
-      position={[1, 0, 2]}
-      distanceFactor={2}
-      zIndexRange={[100, 0]}
-      transform
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        width: '600px',
-        opacity: sceneFocus === 'input' ? 1 : 0.3,
-        transition: 'opacity 0.5s ease-in-out'
-      }}
-    >
-      <Card className="w-full shadow-xl">
-        <CardHeader className="bg-gray-50 border-b">
-          <CardTitle className="text-2xl text-gray-800"> code</CardTitle>
+    <div className="w-full h-full p-6 bg-gray-50 overflow-auto">
+      <Card className="h-full shadow-xl border border-gray-200">
+        <CardHeader className="bg-white border-b sticky top-0 z-10">
+          <CardTitle className="text-2xl text-gray-800">Chat</CardTitle>
         </CardHeader>
-        <CardContent className="pt-6">
+        <CardContent className="pt-6 bg-white flex-grow overflow-auto">
           <Textarea
             placeholder="Type your message here..."
             value={messageInput}
             onChange={(e) => setMessageInput(e.target.value)}
-            className="min-h-32 text-lg focus:ring-2 focus:ring-blue-500"
+            className="min-h-64 text-lg focus:ring-2 focus:ring-blue-500 h-full"
           />
         </CardContent>
-        <CardFooter className="flex justify-between bg-gray-50 border-t py-4">
-          <Button 
-            variant="default" 
+        <CardFooter className="flex justify-between bg-white border-t py-4 sticky bottom-0 z-10">
+          <Button
+            variant="default"
             size="lg"
             className="flex items-center gap-2"
             onClick={() => console.log("Message sent:", messageInput)}
@@ -42,8 +29,8 @@ function ChatInputPanel({ sceneFocus, messageInput, setMessageInput }) {
             <Send size={20} />
             <span>Send</span>
           </Button>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             size="lg"
             className="flex items-center gap-2"
             onClick={() => setMessageInput("")}
@@ -53,8 +40,8 @@ function ChatInputPanel({ sceneFocus, messageInput, setMessageInput }) {
           </Button>
         </CardFooter>
       </Card>
-    </Html>
+    </div>
   );
-}
+};
 
-export default ChatInputPanel;
+export default ChatInterface;
