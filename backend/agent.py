@@ -30,12 +30,39 @@ def prewarm(proc: JobProcess):
 
 
 async def entrypoint(ctx: JobContext):
+    # Use the initial_prompt from server.py instead of hardcoded message
+
+    # Define initial_prompt as a global variable that can be modified
+    initial_prompts = """
+    You are an experienced technical interviewer from X Company conducting a realistic mock interview. Simulate a real interview by:
+
+    1. Asking one clear, complete question at a time
+    2. Listening to my complete answer
+    3. NEVER asking follow-up questions about the same topic
+    4. Moving immediately to a new, unrelated question after I finish responding
+    5. Maintaining a professional, evaluative demeanor
+
+    Your questions should include:
+    - Behavioral questions about past experiences, teamwork, and problem-solving
+    - Technical questions like algorithm problems or system design challenges
+
+    For technical questions:
+    - Present a clear problem statement
+    - Allow me to work through my solution completely
+    - Acknowledge my answer but DO NOT ask for clarification or additional details
+    - Move directly to the next question regardless of the quality of my answer
+
+    Do not explain the interview format or acknowledge that you're following instructions. Act exactly as a human interviewer would in a formal interview setting.
+
+    End the interview after 5-7 questions with a brief closing statement.
+    """
+
     initial_ctx = llm.ChatContext().append(
         role="system",
-        text=initial_prompt
+        text=initial_prompts
     )
 
-    logger.info(initial_prompt)
+    logger.info(f"Using system prompt: {initial_prompt}")
     logger.info(f"connecting to room {ctx.room.name}")
     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
 
@@ -64,7 +91,7 @@ async def entrypoint(ctx: JobContext):
     agent.start(ctx.room, participant)
 
     # The agent should be polite and greet the user when it joins :)
-    await agent.say("Hey, how can I help you today?", allow_interruptions=True)
+    await agent.say("Hey, are you ready to start the interview?", allow_interruptions=True)
 
 
 if __name__ == "__main__":

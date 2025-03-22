@@ -63,7 +63,9 @@ async def form(request: Request, background_tasks: BackgroundTasks):
     
     agent_dir = os.path.join(os.path.dirname(__file__))
     
-    initial_prompt = await request.form()
+    #initial_prompt = await request.form()
+
+    initial_prompt = "You are a cat"
 
     subprocess.Popen(
         "python agent.py dev",
