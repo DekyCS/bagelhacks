@@ -3,9 +3,11 @@ import uuid
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, Form
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Request
 from livekit.api import LiveKitAPI, ListRoomsRequest, AccessToken, VideoGrants
 from livekit.agents import cli, WorkerOptions
 from fastapi import BackgroundTasks
+from fastapi.responses import RedirectResponse
 
 initial_prompt = ""
 
@@ -40,6 +42,7 @@ async def get_rooms():
 
 @app.get("/getToken")
 async def get_token(name: str = "my name", room: str = None):
+    # FastAPI automatically parses query parameters
     if not room:
         room = await generate_room_name()
     
@@ -61,7 +64,6 @@ async def form(request: Request, background_tasks: BackgroundTasks):
     agent_dir = os.path.join(os.path.dirname(__file__))
     
     initial_prompt = await request.form()
-    print(initial_prompt)
 
     subprocess.Popen(
         "python agent.py dev",
@@ -69,7 +71,7 @@ async def form(request: Request, background_tasks: BackgroundTasks):
         cwd=agent_dir
     )
     
-    return initial_prompt
+    return RedirectResponse(url="/interview", status_code=303)
 
 if __name__ == "__main__":
     import uvicorn

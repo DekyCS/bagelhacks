@@ -19,19 +19,26 @@ const LiveKitModal = ({ setShowSupport }) => {
   const getToken = useCallback(async (userName) => {
     try {
       console.log("run")
-      // API call to get token using the provided name
+      // API call to get token using the p
       const response = await fetch(
         `/api/getToken?name=${encodeURIComponent(userName)}`
       );
-      const token = await response.text();
+      
+      // Parse the response as JSON instead of text
+      const data = await response.json();
+      
+      // Extract the token from the response data
+      const tokenValue = data.token;
       
       // Store token and update state to show LiveKit room
-      setToken(token);
+      setToken(tokenValue);
       setIsSubmittingName(false);
     } catch (error) {
       console.error(error);
     }
   }, []);
+
+  console.log(import.meta.env.VITE_LIVEKIT_URL);
 
   // Handle form submission
   const handleNameSubmit = (e) => {

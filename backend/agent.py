@@ -35,6 +35,7 @@ async def entrypoint(ctx: JobContext):
         text=initial_prompt
     )
 
+    logger.info(initial_prompt)
     logger.info(f"connecting to room {ctx.room.name}")
     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
 
