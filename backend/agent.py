@@ -1,4 +1,5 @@
 import logging
+from server import initial_prompt
 
 from dotenv import load_dotenv
 
@@ -24,7 +25,6 @@ from livekit.plugins import (
 load_dotenv(dotenv_path=".env.local")
 logger = logging.getLogger("voice-agent")
 
-
 def prewarm(proc: JobProcess):
     proc.userdata["vad"] = silero.VAD.load()
 
@@ -32,11 +32,7 @@ def prewarm(proc: JobProcess):
 async def entrypoint(ctx: JobContext):
     initial_ctx = llm.ChatContext().append(
         role="system",
-        text=(
-            "You are a voice assistant created by LiveKit. Your interface with users will be voice. "
-            "You should use short and concise responses, and avoiding usage of unpronouncable punctuation. "
-            "You were created as a demo to showcase the capabilities of LiveKit's agents framework."
-        ),
+        text=initial_prompt
     )
 
     logger.info(f"connecting to room {ctx.room.name}")

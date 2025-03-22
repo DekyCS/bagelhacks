@@ -1,18 +1,29 @@
 import os
-from livekit import api
-from flask import Flask, request
-from dotenv import load_dotenv
-from flask_cors import CORS
-from livekit.api import LiveKitAPI, ListRoomsRequest
 import uuid
+from dotenv import load_dotenv
+from fastapi import FastAPI, Request, Form
+from fastapi.middleware.cors import CORSMiddleware
+from livekit.api import LiveKitAPI, ListRoomsRequest, AccessToken, VideoGrants
+from livekit.agents import cli, WorkerOptions
+from fastapi import BackgroundTasks
+
+initial_prompt = ""
 
 load_dotenv(".env.local")
 
-app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})
-
-# Make sure your .env.local file has this variable
 LIVEKIT_URL = os.getenv("LIVEKIT_URL")
+LIVEKIT_API_KEY = os.getenv("LIVEKIT_API_KEY")
+LIVEKIT_API_SECRET = os.getenv("LIVEKIT_API_SECRET")
+
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 async def generate_room_name():
     name = "room-" + str(uuid.uuid4())[:8]
@@ -22,29 +33,44 @@ async def generate_room_name():
     return name
 
 async def get_rooms():
-    # Use the LIVEKIT_URL when creating the API instance
     api = LiveKitAPI(url=LIVEKIT_URL)
     rooms = await api.room.list_rooms(ListRoomsRequest())
     await api.aclose()
     return [room.name for room in rooms.rooms]
 
-@app.route("/getToken")
-async def get_token():
-    name = request.args.get("name", "my name")
-    room = request.args.get("room", None)
-    
+@app.get("/getToken")
+async def get_token(name: str = "my name", room: str = None):
     if not room:
         room = await generate_room_name()
-        
-    token = api.AccessToken(os.getenv("LIVEKIT_API_KEY"), os.getenv("LIVEKIT_API_SECRET")) \
-        .with_identity(name)\
-        .with_name(name)\
-        .with_grants(api.VideoGrants(
+    
+    token = AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET) \
+        .with_identity(name) \
+        .with_name(name) \
+        .with_grants(VideoGrants(
             room_join=True,
             room=room
         ))
     
-    return token.to_jwt()
+    return {"token": token.to_jwt()}
+
+@app.post("/form")
+async def form(request: Request, background_tasks: BackgroundTasks):
+    import subprocess
+    import os
+    
+    agent_dir = os.path.join(os.path.dirname(__file__))
+    
+    initial_prompt = await request.form()
+    print(initial_prompt)
+
+    subprocess.Popen(
+        "python agent.py dev",
+        shell=True,
+        cwd=agent_dir
+    )
+    
+    return initial_prompt
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5001, debug=True)
+    import uvicorn
+    uvicorn.run(app, host="127.0.0.1", port=5001, log_level="info")
