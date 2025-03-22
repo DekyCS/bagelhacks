@@ -57,7 +57,7 @@ export default function Start() {
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent>
-                                    <form action="/form" method="post">
+                                    <form action="/api/form" method="post">
                                         <div className="grid gap-4">
                                             <BlurFade delay={0.2}>
                                                 <div className="grid gap-2">
