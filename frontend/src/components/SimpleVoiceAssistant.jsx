@@ -7,6 +7,7 @@ import {
 } from "@livekit/components-react";
 import { Track } from "livekit-client";
 import { useEffect, useState, useRef } from "react";
+import { updateLatestAgentMessage } from "./MessageStore";
 
 // Create a simple text-to-viseme mapping function that generates visemes with relative timings
 const textToVisemes = (text) => {
@@ -85,6 +86,27 @@ const textToVisemes = (text) => {
   return visemes;
 };
 
+// Helper function to save chat history to a file
+const saveChatHistory = (chatHistory) => {
+  try {
+    // In a real implementation, you would use a server endpoint to write to a file
+    // For now, we'll log to console and use localStorage as a demo
+    console.log("Saving chat history:", chatHistory);
+    localStorage.setItem('interviewChatHistory', JSON.stringify(chatHistory));
+    
+    // In a production environment, you would use something like:
+    // fetch('/api/saveChatHistory', {
+    //   method: 'POST',
+    //   headers: {
+    //     'Content-Type': 'application/json',
+    //   },
+    //   body: JSON.stringify(chatHistory),
+    // });
+  } catch (error) {
+    console.error("Error saving chat history:", error);
+  }
+};
+
 const SimpleVoiceAssistant = () => {
   const { state, audioTrack, agentTranscriptions } = useVoiceAssistant();
   const localParticipant = useLocalParticipant();
@@ -100,6 +122,9 @@ const SimpleVoiceAssistant = () => {
   
   // Ref to track when speech begins
   const speechStartTimeRef = useRef(null);
+  
+  // Chat history state
+  const [chatHistory, setChatHistory] = useState([]);
   
   // Function to create and dispatch a viseme event
   const dispatchVisemeEvent = (text, visemes) => {
@@ -160,7 +185,7 @@ const SimpleVoiceAssistant = () => {
     }
   }, [state, agentTranscriptions]);
 
-  // Handle transcription updates
+  // Handle agent transcription updates
   useEffect(() => {
     // Skip if there are no transcriptions
     if (!agentTranscriptions || agentTranscriptions.length === 0) return;
@@ -187,10 +212,86 @@ const SimpleVoiceAssistant = () => {
       const visemes = textToVisemes(latest.text);
       dispatchVisemeEvent(latest.text, visemes);
       
+      // Update the shared message store
+      updateLatestAgentMessage(latest.text);
+      
       // Check if this is a technical question
       checkForTechnicalQuestion(latest.text);
+      
+      // Add to chat history
+      setChatHistory(prev => {
+        const newHistory = [...prev];
+        // Check if we're updating an existing message or adding a new one
+        const existingMessageIndex = newHistory.findIndex(
+          msg => msg.role === 'agent' && msg.id === latest.id
+        );
+        
+        if (existingMessageIndex >= 0) {
+          // Update existing message
+          newHistory[existingMessageIndex] = {
+            ...newHistory[existingMessageIndex],
+            content: latest.text,
+            timestamp: new Date().toISOString()
+          };
+        } else {
+          // Add new message
+          newHistory.push({
+            id: latest.id,
+            role: 'agent',
+            content: latest.text,
+            timestamp: new Date().toISOString()
+          });
+        }
+        
+        // Save updated history
+        saveChatHistory(newHistory);
+        return newHistory;
+      });
     }
   }, [agentTranscriptions, latestAgentMessage]);
+
+  // Handle user transcription updates
+  useEffect(() => {
+    if (!userTranscriptions || userTranscriptions.length === 0) return;
+    
+    console.log("===== User transcription update =====");
+    console.log("User transcriptions:", userTranscriptions);
+    
+    // Process user messages similar to agent messages
+    const userMessages = userTranscriptions.filter(t => t.text && t.text.trim() !== '');
+    if (userMessages.length === 0) return;
+    
+    userMessages.forEach(message => {
+      setChatHistory(prev => {
+        const newHistory = [...prev];
+        // Check if message already exists
+        const existingMessageIndex = newHistory.findIndex(
+          msg => msg.role === 'user' && msg.id === message.id
+        );
+        
+        if (existingMessageIndex >= 0) {
+          // Update existing message
+          newHistory[existingMessageIndex] = {
+            ...newHistory[existingMessageIndex],
+            content: message.text,
+            timestamp: new Date().toISOString()
+          };
+        } else {
+          // Add new message
+          newHistory.push({
+            id: message.id,
+            role: 'user',
+            content: message.text,
+            timestamp: new Date().toISOString()
+          });
+        }
+        
+        // Save updated history
+        saveChatHistory(newHistory);
+        return newHistory;
+      });
+    });
+  }, [userTranscriptions]);
 
   // Style for visualizer
   const visualizerStyles = {
@@ -214,6 +315,10 @@ const SimpleVoiceAssistant = () => {
       </div>
       <div className="p-3 flex justify-center">
         <VoiceAssistantControlBar />
+      </div>
+      {/* Debug section - can be removed in production */}
+      <div className="p-2 text-xs text-gray-500 border-t border-gray-200">
+        Messages: {chatHistory.length}
       </div>
     </div>
   );
