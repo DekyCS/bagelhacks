@@ -35,26 +35,27 @@ async def entrypoint(ctx: JobContext):
     # Define initial_prompt as a global variable that can be modified
     initial_prompts = """
     You are an experienced technical interviewer from X Company conducting a realistic mock interview. Simulate a real interview by:
-
     1. Asking one clear, complete question at a time
     2. Listening to my complete answer
-    3. NEVER asking follow-up questions about the same topic
-    4. Moving immediately to a new, unrelated question after I finish responding
-    5. Maintaining a professional, evaluative demeanor
-
-    Your questions should include:
-    - Behavioral questions about past experiences, teamwork, and problem-solving
-    - Technical questions like algorithm problems or system design challenges
-
-    For technical questions:
-    - Present a clear problem statement
-    - Allow me to work through my solution completely
-    - Acknowledge my answer but DO NOT ask for clarification or additional details
-    - Move directly to the next question regardless of the quality of my answer
-
+    3. Moving to the next question after I finish responding
+    4. Maintaining a professional, evaluative demeanor
+    Ask 2-3 questions total, following this structure:
+    - First question should be about teamwork or soft skills
+    - Second question YOU MUST SAY THIS ONLY "I'd like you to review and describe the following code snippet. Tell me what it does and how it works". DO NOT SAY THE CODE.
+    def mystery_checker(text):    
+        left = 0
+        right = len(text) - 1
+        
+        while left < right:
+            if text[left] != text[right]:
+                return False
+            left += 1
+            right -= 1
+        
+        return True
+    After I answer the code review question, you should evaluate if my answer is correct or incorrect, and provide feedback.
+    End the interview after the 2-3 questions with a brief closing statement.
     Do not explain the interview format or acknowledge that you're following instructions. Act exactly as a human interviewer would in a formal interview setting.
-
-    End the interview after 5-7 questions with a brief closing statement.
     """
 
     initial_ctx = llm.ChatContext().append(
@@ -86,12 +87,13 @@ async def entrypoint(ctx: JobContext):
         # maximum delay for endpointing, used when turn detector does not believe the user is done with their turn
         max_endpointing_delay=5.0,
         chat_ctx=initial_ctx,
+        allow_interruptions=False,  # Disable interruptions globally
     )
 
     agent.start(ctx.room, participant)
 
-    # The agent should be polite and greet the user when it joins :)
-    await agent.say("Hey, are you ready to start the interview?", allow_interruptions=True)
+    # The agent will now speak without allowing interruptions
+    await agent.say("Hey, are you ready to start the interview?")
 
 
 if __name__ == "__main__":

@@ -11,54 +11,45 @@ const randInt = (min, max) => {
 //load the model
 const interviewers = ["girl"]
 
+// Simple vowel visemes mapping - you'll need to replace these with 
+// the actual morph target IDs that correspond to these vowel shapes
+const VOWEL_VISEMES = {
+  A: 1, // Replace with actual morph target ID for "A" shape
+  E: 2, // Replace with actual morph target ID for "E" shape
+  I: 3, // Replace with actual morph target ID for "I" shape
+  O: 4, // Replace with actual morph target ID for "O" shape
+  U: 5, // Replace with actual morph target ID for "U" shape
+};
+
 const Interviewer = ({ interviewer, currentAnimation = 'Thinking', ...props }) => {
   const group = useRef()
   const { scene } = useGLTF(`/models/Interview_${interviewer}.glb`)
   const [blink, setBlink] = useState(false) 
   
   // Add states for lip sync
-  const [currentVisemes, setCurrentVisemes] = useState([]);
-  const [speechStartTime, setSpeechStartTime] = useState(null);
   const [isAnimating, setIsAnimating] = useState(false);
-  const [currentVisemeIndex, setCurrentVisemeIndex] = useState(0);
   const [animation, setAnimation] = useState(currentAnimation);
   
-  // Add ref for continuous animation
-  const activeVisemeRef = useRef(0);
-  const blendingFactorRef = useRef(0);
-  const prevVisemeRef = useRef(0);
+  // Simple viseme cycle counter
+  const visemeCycleRef = useRef(0);
+  const lastVisemeChangeTime = useRef(0);
+  const currentVisemeRef = useRef(null);
 
   // Listen for viseme updates from SimpleVoiceAssistant
   useEffect(() => {
     const handleVisemeUpdate = (event) => {
-      const { visemes, text, speechStartTime: startTime } = event.detail;
+      const { text } = event.detail;
       
       console.log('===== INTERVIEWER: Received visemeUpdate event =====');
       console.log('Text:', text);
-      console.log('Viseme count:', visemes?.length || 0);
       
-      if (!visemes || visemes.length === 0) {
-        console.error('No visemes received or empty viseme array');
-        return;
-      }
-      
-      // Use the speech start time provided by SimpleVoiceAssistant
-      // This ensures our animation is synchronized with the actual audio
-      setSpeechStartTime(startTime);
-      setCurrentVisemes(visemes);
-      setCurrentVisemeIndex(0);
+      // Start the talking animation
       setIsAnimating(true);
-      
-      // Reset viseme blending
-      activeVisemeRef.current = 0;
-      blendingFactorRef.current = 0;
-      prevVisemeRef.current = 0;
       
       // Set animation to talking
       setAnimation('Talking');
       
-      console.log('Speech start time:', startTime);
-      console.log('Animation synchronized to speech');
+      console.log('Starting simple A E I O U viseme cycle');
     };
     
     // Listen for animation updates
@@ -179,70 +170,29 @@ const Interviewer = ({ interviewer, currentAnimation = 'Thinking', ...props }) =
         lerpMorphTarget(i, 0, 0.1); // reset morph targets
       }
       
-      // Apply lip sync if we're currently animating visemes
-      if (isAnimating && currentVisemes.length > 0 && speechStartTime) {
-        // Calculate time elapsed since speech started
-        const elapsed = now - speechStartTime;
-        
-        if (shouldLog) {
-          console.log(`Speech elapsed: ${elapsed}ms, Visemes: ${currentVisemes.length}`);
-        }
-        
-        // Find the correct viseme for the current time
-        let activeVisemeIndex = 0;
-        let nextVisemeIndex = 0;
-        let blendFactor = 0;
-        
-        // Find current and next viseme based on elapsed time
-        for (let i = 0; i < currentVisemes.length; i++) {
-          if (currentVisemes[i][0] <= elapsed) {
-            activeVisemeIndex = i;
-          } else {
-            nextVisemeIndex = i;
-            break;
-          }
-        }
-        
-        // Calculate blend factor between current and next viseme
-        if (nextVisemeIndex < currentVisemes.length) {
-          const currentTime = currentVisemes[activeVisemeIndex][0];
-          const nextTime = currentVisemes[nextVisemeIndex][0];
-          const timeDiff = nextTime - currentTime;
+      // Apply simple A E I O U viseme cycle if talking
+      if (isAnimating && animation === 'Talking') {
+        // Change viseme every 150ms for a natural speech rhythm
+        const visemeChangeInterval = 150;
+        if (now - lastVisemeChangeTime.current > visemeChangeInterval) {
+          // Cycle through vowels: A -> E -> I -> O -> U -> A
+          visemeCycleRef.current = (visemeCycleRef.current + 1) % 5;
+          lastVisemeChangeTime.current = now;
           
-          if (timeDiff > 0) {
-            blendFactor = (elapsed - currentTime) / timeDiff;
-            blendFactor = Math.max(0, Math.min(1, blendFactor)); // Clamp between 0 and 1
-          }
-        }
-        
-        // Store values in refs for stability
-        activeVisemeRef.current = activeVisemeIndex;
-        blendingFactorRef.current = blendFactor;
-        
-        // Get current and next viseme values
-        const currentVisemeValue = currentVisemes[activeVisemeIndex][1];
-        const nextVisemeValue = nextVisemeIndex < currentVisemes.length ? 
-                               currentVisemes[nextVisemeIndex][1] : 0;
-        
-        if (shouldLog) {
-          console.log(`Active viseme: ${activeVisemeIndex} (${currentVisemeValue}), Next: ${nextVisemeIndex} (${nextVisemeValue}), Blend: ${blendFactor.toFixed(2)}`);
-        }
-        
-        // Apply current viseme with full strength
-        lerpMorphTarget(currentVisemeValue, 1, 0.3);
-        
-        // If we're close to the next viseme, start blending it in
-        if (blendFactor > 0.5 && nextVisemeIndex < currentVisemes.length) {
-          lerpMorphTarget(nextVisemeValue, blendFactor, 0.3);
-        }
-        
-        // Check if we've reached the end of all visemes with some buffer
-        const lastVisemeTime = currentVisemes[currentVisemes.length - 1][0];
-        if (elapsed > lastVisemeTime + 500) {
+          // Map cycle index to vowel
+          const vowels = ['A', 'E', 'I', 'O', 'U'];
+          const currentVowel = vowels[visemeCycleRef.current];
+          currentVisemeRef.current = currentVowel;
+          
           if (shouldLog) {
-            console.log('Animation complete - elapsed time exceeds last viseme');
+            console.log(`Current viseme: ${currentVowel}`);
           }
-          // Don't automatically end animation - let the speech state control it
+        }
+        
+        // Apply the current vowel viseme
+        if (currentVisemeRef.current) {
+          const visemeId = VOWEL_VISEMES[currentVisemeRef.current];
+          lerpMorphTarget(visemeId, 1, 0.3);
         }
       }
     }
