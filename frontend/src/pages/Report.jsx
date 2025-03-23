@@ -14,12 +14,20 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BlurFade } from "@/components/magicui/blur-fade";
 import { AlertCircle, CheckCircle, Clock, Star, ArrowLeft, Award } from 'lucide-react';
+import { CohereClientV2 } from "cohere-ai";
 
 export default function InterviewReport() {
+    // State to store Cohere response
+    const [cohereResponse, setCohereResponse] = React.useState("");
+
     // Force dark theme with React's useEffect
     React.useEffect(() => {
         // Add dark class to html element
         document.documentElement.classList.add('dark');
+        
+        // Fetch Cohere response when component mounts
+        fetchCohereResponse();
+        
         // Remove the class when component unmounts
         return () => {
             // Only remove if we added it
@@ -27,9 +35,42 @@ export default function InterviewReport() {
         };
     }, []);
 
+    const fetchCohereResponse = async () => {
+        try {
+          // Initialize the Cohere client with your API key
+          // It's better to use environment variables in production
+          const cohere = new CohereClientV2({
+            token: "peQTqxuWB3I9QA71Z1urTrU4RsArtNcCeUC3vPSr", // Consider using environment variable
+          });
+      
+          // Call the generate endpoint with a supported model
+          const response = await cohere.generate({
+            model: "command", // Updated to a supported model name
+            prompt: "Once upon a time in a magical land called",
+            maxTokens: 50, // Note: parameter name changed from max_tokens to maxTokens
+            temperature: 1,
+          });
+      
+          console.log(response); // Log the full response
+          
+          // Access the generated text (structure may differ in V2)
+          const generatedText = response.generations?.[0]?.text || "";
+          console.log("Generated text:", generatedText);
+
+          const chat_history = JSON.parse(localStorage.getItem('interviewChatHistory'));
+
+          console.log(chat_history)
+          
+          setCohereResponse(generatedText);
+          return generatedText;
+        } catch (error) {
+          console.error("Error fetching Cohere response:", error);
+        }
+      };
+
     // Mock data - this would come from your actual interview assessment
     const mockReport = {
-      candidateName: "Sigma",
+      candidateName: "John Doe",
       position: "Senior Frontend Developer",
       overallScore: 99,
       interviewDate: "March 22, 2025",
@@ -43,39 +84,26 @@ export default function InterviewReport() {
         { name: "Experience", score: 99, feedback: "Has relevant experience but could benefit from more exposure to large-scale applications." }
       ],
       questions: [
-        { question: "Describe a challenging project you worked on", rating: 4, notes: "Provided clear example with good details on their role and impact" },
+        { question: "Describe a challenging project you worked on", rating: 5, notes: "Provided clear example with good details on their role and impact" },
         { question: "Implement a function to find duplicates in an array", rating: 5, notes: "Optimal O(n) solution with clear explanation of approach" },
-        { question: "How would you optimize a slow-loading React component?", rating: 3, notes: "Basic understanding of optimization techniques, but missed some key concepts" },
-        { question: "Tell me about a time you had to learn a new technology quickly", rating: 4, notes: "Good example showing adaptability and learning approach" },
-        { question: "Design a simple state management solution", rating: 3, notes: "Solution worked but lacked consideration for edge cases" }
+        { question: "How would you optimize a slow-loading React component?", rating: 5, notes: "Basic understanding of optimization techniques, but missed some key concepts" },
+        { question: "Tell me about a time you had to learn a new technology quickly", rating: 5, notes: "Good example showing adaptability and learning approach" },
+        { question: "Design a simple state management solution", rating: 5, notes: "Solution worked but lacked consideration for edge cases" }
       ],
       strengths: ["Technical problem solving", "Communication skills", "React ecosystem knowledge"],
       areasToImprove: ["System design concepts", "Performance optimization", "Edge case handling"],
       recommendationStatus: "Recommended for next round"
     };
 
-    // Helper function to get color based on score
-    const getScoreColor = (score) => {
-      if (score >= 85) return "bg-green-500";
-      if (score >= 70) return "bg-blue-500";
-      return "bg-red-500";
-    };
-
     // Helper for star ratings
     const StarRating = ({ rating }) => {
-      const getStarColor = (rating) => {
-        if (rating >= 4) return "fill-green-400 text-green-400";
-        if (rating >= 3) return "fill-blue-400 text-blue-400";
-        return "fill-red-400 text-red-400";
-      };
-      
       return (
         <div className="flex items-center">
           {[...Array(5)].map((_, i) => (
             <Star 
               key={i} 
               size={16} 
-              className={i < rating ? getStarColor(rating) : "text-gray-500 opacity-40"} 
+              className={i < rating ? "fill-yellow-400 text-yellow-400" : "text-gray-500 opacity-40"} 
             />
           ))}
         </div>
@@ -102,7 +130,7 @@ export default function InterviewReport() {
                 <BlurFade delay={0.2} inView>
                     <header className="text-center mb-8">
                         <h1 className="text-4xl font-bold text-blue-300 mb-1">
-                            
+                            Interview Results
                         </h1>
                         <p className="text-gray-400 text-sm">
                             {mockReport.position} | {mockReport.interviewDate}
@@ -132,7 +160,7 @@ export default function InterviewReport() {
                                     <BlurFade delay={0.4} inView>
                                         <div className="flex flex-col items-center">
                                             <div className="relative">
-                                                <span className="text-6xl font-bold text-green-400">
+                                                <span className="text-6xl font-bold text-blue-300">
                                                     {mockReport.overallScore}
                                                 </span>
                                                 <span className="absolute top-0 right-0 transform translate-x-full -translate-y-1/4 text-xs text-gray-400">/100</span>
@@ -143,7 +171,7 @@ export default function InterviewReport() {
                                     <BlurFade delay={0.5} inView>
                                         <div className="bg-gray-800 rounded p-4 border border-blue-900/30">
                                             <h3 className="font-medium mb-1 text-sm text-blue-300">Summary</h3>
-                                            <p className="text-gray-300 text-xs">Strong technical knowledge with good communication skills. Demonstrated solid problem-solving approach but could improve on system design concepts.</p>
+                                            <p className="text-gray-300 text-xs">{mockReport.summary}</p>
                                         </div>
                                     </BlurFade>
                                     
@@ -179,7 +207,7 @@ export default function InterviewReport() {
                                         <Clock size={14} />
                                         <span className="text-xs">{mockReport.duration}</span>
                                     </div>
-                                    <Badge className="text-xs py-0.5 bg-green-900/70 text-green-100 border-green-700">
+                                    <Badge className="text-xs py-0.5 bg-blue-900/70 text-blue-100 border-blue-700">
                                         {mockReport.recommendationStatus}
                                     </Badge>
                                 </CardFooter>
@@ -199,13 +227,12 @@ export default function InterviewReport() {
                                         <BlurFade key={idx} delay={0.5 + (idx * 0.1)} inView>
                                             <div className="p-3 bg-gray-800 rounded-lg border border-blue-900/20 hover:border-blue-800/40 transition-all duration-300">
                                                 <div className="flex justify-between items-center">
-                                                    <span className="text-xs text-gray-300">{category.name}</span>
-                                                    <span className="text-xs font-medium text-green-400">{category.score}</span>
+                                                    <span className="text-xs text-blue-200">{category.name}</span>
+                                                    <span className="text-xs text-blue-300">{category.score}</span>
                                                 </div>
                                                 <Progress 
                                                     value={category.score} 
-                                                    className="h-1.5 bg-gray-700"
-                                                    indicatorClassName={getScoreColor(category.score)}
+                                                    className={`h-1.5 bg-gray-700 ${category.score >= 85 ? "bg-blue-400" : category.score >= 80 ? "bg-blue-500" : "bg-amber-400"}`}
                                                 />
                                             </div>
                                         </BlurFade>
