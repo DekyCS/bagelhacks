@@ -28,55 +28,55 @@ function Experience() {
   // Model rotation state
   const [modelRotation, setModelRotation] = useState([0, 0, 0]);
   
-  // Add event listener for technical questions
-  useEffect(() => {
-    const handleOpenTextInput = (event) => {
-      console.log("Received openTextInput event:", event.detail);
-      setSceneFocus("input");
+  // // Add event listener for technical questions
+  // useEffect(() => {
+  //   const handleOpenTextInput = (event) => {
+  //     console.log("Received openTextInput event:", event.detail);
+  //     setSceneFocus("input");
       
-      // Also update the Leva controls to match the new state
-      if (window.__leva && window.__leva.setValueAtPath) {
-        window.__leva.setValueAtPath('scene', 'Text Input');
-      }
-    };
+  //     // Also update the Leva controls to match the new state
+  //     if (window.__leva && window.__leva.setValueAtPath) {
+  //       window.__leva.setValueAtPath('scene', 'Text Input');
+  //     }
+  //   };
     
-    window.addEventListener('openTextInput', handleOpenTextInput);
+  //   window.addEventListener('openTextInput', handleOpenTextInput);
     
-    return () => {
-      window.removeEventListener('openTextInput', handleOpenTextInput);
-    };
-  }, []);
+  //   return () => {
+  //     window.removeEventListener('openTextInput', handleOpenTextInput);
+  //   };
+  // }, []);
   
-  // Animation dropdown and controls
-  const { scene, rotationX } = useControls({
-    animation: {
-      value: animation,
-      options: ['Thinking', 'Greeting', 'Idle', 'Talking'],
-      onChange: (value) => {
-        setAnimation(value);
-        // Dispatch animation update event for consistency
-        window.dispatchEvent(new CustomEvent('animationUpdate', {
-          detail: { animation: value }
-        }));
-      }
-    },
-    scene: {
-      value: 'Model Only',
-      options: ['Model Only', 'Text Input'],
-      onChange: (value) => {
-        setSceneFocus(value === 'Model Only' ? 'model' : 'input');
-      }
-    },
-    rotationX: {
-      value: 0.1,
-      min: -0.5,
-      max: 0.5,
-      step: 0.01,
-      onChange: (value) => {
-        setModelRotation([value, modelRotation[1], modelRotation[2]]);
-      }
-    }
-  });
+  // // Animation dropdown and controls
+  // const { scene, rotationX } = useControls({
+  //   animation: {
+  //     value: animation,
+  //     options: ['Thinking', 'Greeting', 'Idle', 'Talking'],
+  //     onChange: (value) => {
+  //       setAnimation(value);
+  //       // Dispatch animation update event for consistency
+  //       window.dispatchEvent(new CustomEvent('animationUpdate', {
+  //         detail: { animation: value }
+  //       }));
+  //     }
+  //   },
+  //   scene: {
+  //     value: 'Model Only',
+  //     options: ['Model Only', 'Text Input'],
+  //     onChange: (value) => {
+  //       setSceneFocus(value === 'Model Only' ? 'model' : 'input');
+  //     }
+  //   },
+  //   rotationX: {
+  //     value: 0.1,
+  //     min: -0.5,
+  //     max: 0.5,
+  //     step: 0.01,
+  //     onChange: (value) => {
+  //       setModelRotation([value, modelRotation[1], modelRotation[2]]);
+  //     }
+  //   }
+  // });
   
   // Background image URL - replace with your actual image path
   const backgroundImageUrl = "/bg.jpg"; // Your actual image path

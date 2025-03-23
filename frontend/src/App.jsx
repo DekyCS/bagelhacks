@@ -3,7 +3,12 @@ import Home from './pages/Home'
 import Interview from './pages/Interview'
 import Start from './pages/Start'
 import InterviewReport from './pages/Report'
+import { useGLTF} from '@react-three/drei'
+
 function App() {
+
+  useGLTF.preload("/models/Interview_girl.glb");
+  console.log("done preloading")
 
   return (
     <Router>
