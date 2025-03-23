@@ -82,7 +82,7 @@ async def entrypoint(ctx: JobContext):
         tts=cartesia.TTS(),
         # use LiveKit's transformer-based turn detector
         turn_detector=turn_detector.EOUModel(),
-        min_endpointing_delay=0.5,
+        min_endpointing_delay=1,
         # maximum delay for endpointing, used when turn detector does not believe the user is done with their turn
         max_endpointing_delay=5.0,
         chat_ctx=initial_ctx,
