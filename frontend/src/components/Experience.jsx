@@ -28,24 +28,24 @@ function Experience() {
   // Model rotation state
   const [modelRotation, setModelRotation] = useState([0, 0, 0]);
   
-  // // Add event listener for technical questions
-  // useEffect(() => {
-  //   const handleOpenTextInput = (event) => {
-  //     console.log("Received openTextInput event:", event.detail);
-  //     setSceneFocus("input");
+  // Add event listener for technical questions
+  useEffect(() => {
+    const handleOpenTextInput = (event) => {
+      console.log("Received openTextInput event:", event.detail);
+      setSceneFocus("input");
       
-  //     // Also update the Leva controls to match the new state
-  //     if (window.__leva && window.__leva.setValueAtPath) {
-  //       window.__leva.setValueAtPath('scene', 'Text Input');
-  //     }
-  //   };
+      // Also update the Leva controls to match the new state
+      if (window.__leva && window.__leva.setValueAtPath) {
+        window.__leva.setValueAtPath('scene', 'Text Input');
+      }
+    };
     
-  //   window.addEventListener('openTextInput', handleOpenTextInput);
+    window.addEventListener('openTextInput', handleOpenTextInput);
     
-  //   return () => {
-  //     window.removeEventListener('openTextInput', handleOpenTextInput);
-  //   };
-  // }, []);
+    return () => {
+      window.removeEventListener('openTextInput', handleOpenTextInput);
+    };
+  }, []);
   
   // // Animation dropdown and controls
   // const { scene, rotationX } = useControls({
