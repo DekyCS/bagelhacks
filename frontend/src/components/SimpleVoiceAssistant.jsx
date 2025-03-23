@@ -114,7 +114,7 @@ const SimpleVoiceAssistant = () => {
 
   // New function to check for "technical question" phrase
   const checkForTechnicalQuestion = (text) => {
-    if (text && text.toLowerCase().includes("technical question")) {
+    if (text && text.toLowerCase().includes("review and describe the following code snippet")) {
       console.log("Technical question detected! Opening text input...");
       // Dispatch a custom event to signal opening the text input
       window.dispatchEvent(new CustomEvent('openTextInput', {
