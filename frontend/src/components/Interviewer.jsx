@@ -11,45 +11,40 @@ const randInt = (min, max) => {
 //load the model
 const interviewers = ["girl"]
 
-// Simple vowel visemes mapping - you'll need to replace these with 
-// the actual morph target IDs that correspond to these vowel shapes
+// Keeping your original viseme mapping, just making sure it works
 const VOWEL_VISEMES = {
-  A: 1, // Replace with actual morph target ID for "A" shape
-  E: 2, // Replace with actual morph target ID for "E" shape
-  I: 3, // Replace with actual morph target ID for "I" shape
-  O: 4, // Replace with actual morph target ID for "O" shape
-  U: 5, // Replace with actual morph target ID for "U" shape
+  'A': 1, // Replace with actual morph target ID for "A" shape
+  'E': 2, // Replace with actual morph target ID for "E" shape
+  'I': 3, // Replace with actual morph target ID for "I" shape
+  'O': 4, // Replace with actual morph target ID for "O" shape
+  'U': 5, // Replace with actual morph target ID for "U" shape
 };
 
-const Interviewer = ({ interviewer, currentAnimation = 'Thinking', ...props }) => {
+// Sequence of vowels to cycle through for speech
+const VOWEL_SEQUENCE = ['A', 'E', 'I', 'O', 'U'];
+
+const Interviewer = ({ interviewer, currentAnimation = 'Idle', ...props }) => {
   const group = useRef()
   const { scene } = useGLTF(`/models/Interview_${interviewer}.glb`)
   const [blink, setBlink] = useState(false) 
   
-  // Add states for lip sync
-  const [isAnimating, setIsAnimating] = useState(false);
+  // Lip sync states
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const [animation, setAnimation] = useState(currentAnimation);
   
-  // Simple viseme cycle counter
-  const visemeCycleRef = useRef(0);
+  // Viseme state
+  const currentVowelIndex = useRef(0);
   const lastVisemeChangeTime = useRef(0);
-  const currentVisemeRef = useRef(null);
 
   // Listen for viseme updates from SimpleVoiceAssistant
   useEffect(() => {
     const handleVisemeUpdate = (event) => {
-      const { text } = event.detail;
-      
       console.log('===== INTERVIEWER: Received visemeUpdate event =====');
-      console.log('Text:', text);
       
-      // Start the talking animation
-      setIsAnimating(true);
+      // Start the speaking state
+      setIsSpeaking(true);
       
-      // Set animation to talking
-      setAnimation('Talking');
-      
-      console.log('Starting simple A E I O U viseme cycle');
+      console.log('Lip sync activated');
     };
     
     // Listen for animation updates
@@ -57,11 +52,12 @@ const Interviewer = ({ interviewer, currentAnimation = 'Thinking', ...props }) =
       const { animation } = event.detail;
       console.log('===== INTERVIEWER: Received animationUpdate event =====');
       console.log('New animation:', animation);
+      
       setAnimation(animation);
       
-      // If switching to idle, stop lip sync animation
-      if (animation === 'Idle' && isAnimating) {
-        setIsAnimating(false);
+      // If switching to Idle, stop lip sync
+      if (animation === 'Idle' && isSpeaking) {
+        setIsSpeaking(false);
       }
     };
     
@@ -75,7 +71,7 @@ const Interviewer = ({ interviewer, currentAnimation = 'Thinking', ...props }) =
       window.removeEventListener('visemeUpdate', handleVisemeUpdate);
       window.removeEventListener('animationUpdate', handleAnimationUpdate);
     };
-  }, [isAnimating]);
+  }, [isSpeaking]);
 
   // Blinking animation
   useEffect(() => {
@@ -93,7 +89,7 @@ const Interviewer = ({ interviewer, currentAnimation = 'Thinking', ...props }) =
     return () => clearTimeout(blinkTimeout);
   }, []); 
 
-  // Function to smoothly apply morph targets
+  // Function to smoothly apply morph targets - keeping your original implementation
   const lerpMorphTarget = (target, value, speed = 0.1) => {
     scene.traverse((child) => {
       if (child.isSkinnedMesh && child.morphTargetDictionary) {
@@ -145,22 +141,11 @@ const Interviewer = ({ interviewer, currentAnimation = 'Thinking', ...props }) =
       
       if (shouldLog) {
         lastLogTime.current = now;
-        console.log(`Animation active: ${isAnimating}, Frame: ${frameCounter.current}`);
+        // Log less frequently to reduce console spam
+        if (frameCounter.current % 60 === 0) {
+          console.log(`Animation: ${animation}, Speaking: ${isSpeaking}`);
+        }
       }
-      
-      // If talking, gradually rotate to the left
-      if (animation === 'Talking') {
-        targetRotationY.current = -0.2; // Less extreme rotation
-      } else {
-        // Otherwise, return to neutral position
-        targetRotationY.current = 0;
-      }
-      
-      // Smooth interpolation for rotation
-      setRotationY(prev => prev + (targetRotationY.current - prev) * 0.05);
-      
-      // Apply rotation
-      group.current.rotation.y = rotationY;
       
       // Apply eye blinking using morph targets
       lerpMorphTarget("eye_close", blink ? 1 : 0, 0.5);
@@ -170,29 +155,26 @@ const Interviewer = ({ interviewer, currentAnimation = 'Thinking', ...props }) =
         lerpMorphTarget(i, 0, 0.1); // reset morph targets
       }
       
-      // Apply simple A E I O U viseme cycle if talking
-      if (isAnimating && animation === 'Talking') {
-        // Change viseme every 150ms for a natural speech rhythm
-        const visemeChangeInterval = 150;
+      // Apply lip sync if speaking
+      if (isSpeaking) {
+        // Change vowel every 100-200ms for natural rhythm
+        const visemeChangeInterval = randInt(100, 200);
         if (now - lastVisemeChangeTime.current > visemeChangeInterval) {
           // Cycle through vowels: A -> E -> I -> O -> U -> A
-          visemeCycleRef.current = (visemeCycleRef.current + 1) % 5;
+          currentVowelIndex.current = (currentVowelIndex.current + 1) % VOWEL_SEQUENCE.length;
           lastVisemeChangeTime.current = now;
           
-          // Map cycle index to vowel
-          const vowels = ['A', 'E', 'I', 'O', 'U'];
-          const currentVowel = vowels[visemeCycleRef.current];
-          currentVisemeRef.current = currentVowel;
-          
-          if (shouldLog) {
-            console.log(`Current viseme: ${currentVowel}`);
+          // Occasional logging
+          if (shouldLog && frameCounter.current % 120 === 0) {
+            console.log(`Current vowel: ${VOWEL_SEQUENCE[currentVowelIndex.current]}`);
           }
         }
         
-        // Apply the current vowel viseme
-        if (currentVisemeRef.current) {
-          const visemeId = VOWEL_VISEMES[currentVisemeRef.current];
-          lerpMorphTarget(visemeId, 1, 0.3);
+        // Apply current vowel's morph target
+        const currentVowel = VOWEL_SEQUENCE[currentVowelIndex.current];
+        const visemeTarget = VOWEL_VISEMES[currentVowel];
+        if (visemeTarget !== undefined) {
+          lerpMorphTarget(visemeTarget, 0.6, 0.3);
         }
       }
     }
@@ -215,14 +197,9 @@ const Interviewer = ({ interviewer, currentAnimation = 'Thinking', ...props }) =
   // Play the selected animation when it changes
   useEffect(() => {
     if (actions) {
-      // Identify the current animation name
-      const animationName = animation === 'Idle' ? 'Idle' : 
-                           animation === 'Greeting' ? 'Greeting' : 
-                           animation === 'Talking' ? 'Talking' : 'Thinking';
-      
       // Reset all animations that are not the target animation
       Object.entries(actions).forEach(([name, action]) => {
-        if (name !== animationName) {
+        if (name !== animation) {
           // Fade out any playing animations that aren't the target
           if (action.isRunning) {
             action.fadeOut(0.3);
@@ -232,8 +209,8 @@ const Interviewer = ({ interviewer, currentAnimation = 'Thinking', ...props }) =
       
       // After a short delay to allow fade out, play the new animation
       setTimeout(() => {
-        if (actions[animationName]) {
-          actions[animationName].reset().fadeIn(0.3).play();
+        if (actions[animation]) {
+          actions[animation].reset().fadeIn(0.3).play();
         }
       }, 20); // Small delay to prevent overlap
     }

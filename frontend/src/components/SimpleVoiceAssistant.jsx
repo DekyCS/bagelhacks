@@ -9,88 +9,29 @@ import { Track } from "livekit-client";
 import { useEffect, useState, useRef } from "react";
 import { updateLatestAgentMessage } from "./MessageStore";
 
-// Create a simple text-to-viseme mapping function that generates visemes with relative timings
-const textToVisemes = (text) => {
-  console.log("===== textToVisemes called with: =====", text);
-  if (!text) {
-    console.log("Empty text provided to textToVisemes");
-    return [];
+// Simple helper to trigger mouth movement events
+const triggerMouthMovement = (isActive) => {
+  // Always maintain the current animation but trigger viseme updates
+  if (isActive) {
+    // Trigger viseme update to start mouth movement
+    window.dispatchEvent(new CustomEvent('visemeUpdate', {
+      detail: {
+        text: "Speaking",
+        speechStartTime: Date.now()
+      }
+    }));
+  } else {
+    // Stop mouth movement by setting Idle animation
+    window.dispatchEvent(new CustomEvent('animationUpdate', { 
+      detail: { animation: 'Idle' } 
+    }));
   }
-  
-  // Simple mapping of phonemes to viseme indices
-  const phonemeToViseme = {
-    'a': 10, // Open mouth
-    'e': 11,
-    'i': 12,
-    'o': 13,
-    'u': 14,
-    'm': 15, // Closed mouth
-    'b': 15,
-    'p': 15,
-    'f': 16,
-    'v': 16,
-    's': 11,
-    'th': 17,
-    'default': 0 // Neutral
-  };
-  
-  const visemes = [];
-  let timestamp = 0; // Start at 0 as we'll sync with audio timing
-  
-  // Calculate approximate duration based on characters
-  // Average English speaking rate is ~150 words per minute or ~5 characters per second
-  // So each character takes about 200ms on average
-  const characterDuration = 150; // ms per character (slightly faster)
-  
-  // Split text into chunks/syllables for viseme generation
-  const chunks = text.toLowerCase().split(/\s+|(?=[,.!?])/);
-  console.log("Text split into chunks:", chunks);
-  
-  chunks.forEach((chunk, chunkIndex) => {    
-    // For each chunk, generate visemes
-    for (let i = 0; i < chunk.length; i++) {
-      const char = chunk[i];
-      
-      // Find the appropriate viseme for this character
-      let visemeIndex = phonemeToViseme.default;
-      
-      Object.keys(phonemeToViseme).forEach(phoneme => {
-        if (phoneme.length === 1 && char === phoneme) {
-          visemeIndex = phonemeToViseme[phoneme];
-        } else if (phoneme.length > 1 && chunk.substring(i, i + phoneme.length) === phoneme) {
-          visemeIndex = phonemeToViseme[phoneme];
-        }
-      });
-      
-      // Add the viseme with its timestamp
-      visemes.push([timestamp, visemeIndex]);
-      
-      // Increment timestamp for next viseme
-      timestamp += characterDuration; 
-    }
-    
-    // Add a small pause between chunks (words)
-    timestamp += 50;
-    
-    // Add neutral viseme at word boundaries
-    visemes.push([timestamp, 0]);
-    timestamp += 50;
-  });
-  
-  // Add a final neutral viseme
-  visemes.push([timestamp, 0]);
-  
-  console.log("Generated total visemes:", visemes.length);
-  console.log("Total animation duration:", timestamp, "ms");
-  
-  return visemes;
 };
 
 // Helper function to save chat history to a file
 const saveChatHistory = (chatHistory) => {
   try {
     localStorage.setItem('interviewChatHistory', JSON.stringify(chatHistory));
-    
   } catch (error) {
     console.error("Error saving chat history:", error);
   }
@@ -113,17 +54,6 @@ const SimpleVoiceAssistant = () => {
   // Chat history state
   const [chatHistory, setChatHistory] = useState([]);
   
-  // Function to create and dispatch a viseme event
-  const dispatchVisemeEvent = (text, visemes) => {
-    window.dispatchEvent(new CustomEvent('visemeUpdate', {
-      detail: {
-        visemes,
-        text,
-        speechStartTime: speechStartTimeRef.current || Date.now()
-      }
-    }));
-  };
-
   // New function to check for "technical question" phrase
   const checkForTechnicalQuestion = (text) => {
     if (text && text.toLowerCase().includes("review and describe the following code snippet")) {
@@ -135,7 +65,7 @@ const SimpleVoiceAssistant = () => {
     }
   };
 
-  // New function to check for "technical question" phrase
+  // Check for closing sentence
   const checkForCloseSentence = (text) => {
     if (text && text.trim().toLowerCase().includes("it's been great speaking with you.")) {
       console.log("closing");
@@ -143,7 +73,6 @@ const SimpleVoiceAssistant = () => {
     }
   };
   
-
   // Handle state changes (speaking/not speaking)
   useEffect(() => {
     console.log("===== Voice Assistant State: ", state);
@@ -155,41 +84,24 @@ const SimpleVoiceAssistant = () => {
         console.log("Speech started at:", speechStartTimeRef.current);
       }
       
-      // Always start talking animation
-      window.dispatchEvent(new CustomEvent('animationUpdate', { 
-        detail: { animation: 'Talking' } 
-      }));
-      
-      // If we don't have any transcriptions yet, use dummy visemes
-      if (!agentTranscriptions || agentTranscriptions.length === 0) {
-        console.log("No transcription yet, using dummy visemes");
-        const dummyVisemes = [];
-        for (let i = 0; i < 50; i++) {
-          dummyVisemes.push([i * 200, [10, 12, 14, 15, 0][i % 5]]);
-        }
-        dispatchVisemeEvent("Speaking...", dummyVisemes);
-      }
+      // Start mouth movement
+      triggerMouthMovement(true);
     } else {
       // Reset speech start time when speech ends
       speechStartTimeRef.current = null;
       console.log("Speech ended, reset timing");
       
-      // Return to idle
-      window.dispatchEvent(new CustomEvent('animationUpdate', { 
-        detail: { animation: 'Idle' } 
-      }));
+      // Stop mouth movement
+      triggerMouthMovement(false);
     }
-  }, [state, agentTranscriptions]);
+  }, [state]);
 
   // Handle agent transcription updates
   useEffect(() => {
     // Skip if there are no transcriptions
     if (!agentTranscriptions || agentTranscriptions.length === 0) return;
     
-    console.log("===== Transcription update =====");
-    console.log("Agent transcriptions:", agentTranscriptions);
-    
-    // Find the latest non-empty agent message
+    // Filter out empty transcriptions
     const agentMessages = agentTranscriptions.filter(t => t.text && t.text.trim() !== '');
     if (agentMessages.length === 0) return;
     
@@ -204,16 +116,13 @@ const SimpleVoiceAssistant = () => {
       console.log("New/updated message:", latest.text);
       setLatestAgentMessage(latest);
       
-      // Generate visemes and dispatch event
-      const visemes = textToVisemes(latest.text);
-      dispatchVisemeEvent(latest.text, visemes);
-      
       // Update the shared message store
       updateLatestAgentMessage(latest.text);
       
       // Check if this is a technical question
       checkForTechnicalQuestion(latest.text);
 
+      // Check if this is a closing sentence
       checkForCloseSentence(latest.text);
       
       // Add to chat history
@@ -251,9 +160,6 @@ const SimpleVoiceAssistant = () => {
   // Handle user transcription updates
   useEffect(() => {
     if (!userTranscriptions || userTranscriptions.length === 0) return;
-    
-    console.log("===== User transcription update =====");
-    console.log("User transcriptions:", userTranscriptions);
     
     // Process user messages similar to agent messages
     const userMessages = userTranscriptions.filter(t => t.text && t.text.trim() !== '');
@@ -314,7 +220,6 @@ const SimpleVoiceAssistant = () => {
       <div className="p-3 flex justify-center">
         <VoiceAssistantControlBar />
       </div>
-      {/* Debug section - can be removed in production */}
       <div className="p-2 text-xs text-gray-500 border-t border-gray-200">
         Messages: {chatHistory.length}
       </div>
