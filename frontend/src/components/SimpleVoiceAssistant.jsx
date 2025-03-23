@@ -112,6 +112,17 @@ const SimpleVoiceAssistant = () => {
     }));
   };
 
+  // New function to check for "technical question" phrase
+  const checkForTechnicalQuestion = (text) => {
+    if (text && text.toLowerCase().includes("technical question")) {
+      console.log("Technical question detected! Opening text input...");
+      // Dispatch a custom event to signal opening the text input
+      window.dispatchEvent(new CustomEvent('openTextInput', {
+        detail: { reason: 'technicalQuestion' }
+      }));
+    }
+  };
+
   // Handle state changes (speaking/not speaking)
   useEffect(() => {
     console.log("===== Voice Assistant State: ", state);
@@ -175,6 +186,9 @@ const SimpleVoiceAssistant = () => {
       // Generate visemes and dispatch event
       const visemes = textToVisemes(latest.text);
       dispatchVisemeEvent(latest.text, visemes);
+      
+      // Check if this is a technical question
+      checkForTechnicalQuestion(latest.text);
     }
   }, [agentTranscriptions, latestAgentMessage]);
 

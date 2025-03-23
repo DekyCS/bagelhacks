@@ -1,5 +1,5 @@
 import * as React from "react"
-import { useState, useCallback, useRef } from "react"
+import { useState, useCallback, useRef, useEffect } from "react"
 import Experience from "@/components/Experience"
 import { LiveKitRoom, RoomAudioRenderer } from "@livekit/components-react"
 import SimpleVoiceAssistant from "@/components/SimpleVoiceAssistant"
@@ -15,6 +15,23 @@ export default function Interview() {
     
     // Hardcoded username
     const name = "user";
+    
+    // Listen for scene focus changes from ChatInterface
+    useEffect(() => {
+        const handleSceneFocusChange = (event) => {
+            if (event.detail && event.detail.focus === 'model') {
+                // Update Leva controls if they exist
+                if (window.__leva && window.__leva.setValueAtPath) {
+                    window.__leva.setValueAtPath('scene', 'Model Only');
+                }
+            }
+        };
+        
+        window.addEventListener('sceneFocusChange', handleSceneFocusChange);
+        return () => {
+            window.removeEventListener('sceneFocusChange', handleSceneFocusChange);
+        };
+    }, []);
     
     // Function to get LiveKit token from API
     const getToken = useCallback(async () => {
