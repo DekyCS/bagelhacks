@@ -16,16 +16,36 @@ import { BlurFade } from "@/components/magicui/blur-fade";
 import { ArrowLeft } from 'lucide-react';
 
 export default function Start() {
+    const [name, setName] = React.useState('');
+    const [company, setCompany] = React.useState('');
+    const [position, setPosition] = React.useState('');
+    
     // Force dark theme with React's useEffect
     React.useEffect(() => {
         // Add dark class to html element
         document.documentElement.classList.add('dark');
+        
+        // Load saved values from localStorage if they exist
+        // Removed loading saved values to prevent autofill
+        
         // Remove the class when component unmounts
         return () => {
             // Only remove if we added it
             document.documentElement.classList.remove('dark');
         };
     }, []);
+    
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        
+        // Save to localStorage before form submission
+        localStorage.setItem('interviewName', name);
+        localStorage.setItem('interviewCompany', company);
+        localStorage.setItem('interviewPosition', position);
+        
+        // Now submit the form programmatically
+        e.target.submit();
+    };
 
     return (
         <div className="bg-black w-full min-h-screen overflow-x-hidden">
@@ -57,18 +77,45 @@ export default function Start() {
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent>
-                                    <form action="/api/form" method="post">
+                                    <form action="/api/form" method="post" onSubmit={handleSubmit}>
                                         <div className="grid gap-4">
                                             <BlurFade delay={0.2}>
                                                 <div className="grid gap-2">
                                                     <Label htmlFor="name">Your Name</Label>
-                                                    <Input id="name" name="name" type="text" placeholder="John Doe" />
+                                                    <Input 
+                                                        id="name" 
+                                                        name="name" 
+                                                        type="text" 
+                                                        placeholder="John Doe" 
+                                                        value={name}
+                                                        onChange={(e) => setName(e.target.value)}
+                                                    />
                                                 </div>
                                             </BlurFade>
                                             <BlurFade delay={0.3}>
                                                 <div className="grid gap-2">
                                                     <Label htmlFor="company">Target Company</Label>
-                                                    <Input id="company" name="company" type="text" placeholder="ACME Corp" />
+                                                    <Input 
+                                                        id="company" 
+                                                        name="company" 
+                                                        type="text" 
+                                                        placeholder="ACME Corp" 
+                                                        value={company}
+                                                        onChange={(e) => setCompany(e.target.value)}
+                                                    />
+                                                </div>
+                                            </BlurFade>
+                                            <BlurFade delay={0.5}>
+                                                <div className="grid gap-2">
+                                                    <Label htmlFor="position">Position</Label>
+                                                    <Input 
+                                                        id="position" 
+                                                        name="position" 
+                                                        type="text" 
+                                                        placeholder="Software Engineer" 
+                                                        value={position}
+                                                        onChange={(e) => setPosition(e.target.value)}
+                                                    />
                                                 </div>
                                             </BlurFade>
                                         </div>

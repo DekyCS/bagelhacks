@@ -13,33 +13,56 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BlurFade } from "@/components/magicui/blur-fade";
-import { AlertCircle, CheckCircle, Clock, Star, ArrowLeft, Award } from 'lucide-react';
-import { CohereClientV2 } from "cohere-ai";
+import { Loader2 } from "lucide-react"; // Import Loader2 icon from lucide-react
+import { AlertCircle, CheckCircle, Clock, Star, ArrowLeft, Award, Building2 } from 'lucide-react';
 
 export default function InterviewReport() {
     // State to store interview report data
     const [reportData, setReportData] = React.useState(null);
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState(null);
+    const [loadingProgress, setLoadingProgress] = React.useState(0);
 
+    // Update loading progress animation
+    React.useEffect(() => {
+        if (loading && !reportData) {
+            const interval = setInterval(() => {
+                setLoadingProgress(prev => {
+                    // Increment slowly up to 90%, the last 10% will be when data is actually loaded
+                    const increment = Math.random() * 2;
+                    return prev < 90 ? Math.min(prev + increment, 90) : prev;
+                });
+            }, 300);
+            
+            return () => clearInterval(interval);
+        } else if (!loading) {
+            setLoadingProgress(100);
+        }
+    }, [loading, reportData]);
+    
     // Force dark theme with React's useEffect
     React.useEffect(() => {
         // Add dark class to html element
         document.documentElement.classList.add('dark');
         
-        // Fetch Cohere response when component mounts
-        fetchCohereResponse();
+        // Add overflow-x-hidden to body to prevent horizontal scrolling
+        document.body.style.overflowX = 'hidden';
+        
+        // Fetch API response when component mounts
+        fetchOpenAIResponse();
         
         // Remove the class when component unmounts
         return () => {
             // Only remove if we added it
             document.documentElement.classList.remove('dark');
+            document.body.style.overflowX = '';
         };
     }, []); // Empty dependency array ensures this only runs once
 
-    const fetchCohereResponse = async () => {
+    const fetchOpenAIResponse = async () => {
         try {
             setLoading(true);
+            setLoadingProgress(10); // Start loading progress
             
             // Get chat history from localStorage
             const chatHistory = JSON.parse(localStorage.getItem('interviewChatHistory'));
@@ -51,59 +74,50 @@ export default function InterviewReport() {
                 return;
             }
             
-            // Extract position and candidate name if available
-            let position = "Unknown Position";
-            let candidateName = "Unknown Candidate";
+            setLoadingProgress(20); // Update progress
             
-            // Try to extract position and name from chat history
-            for (const message of chatHistory) {
-                if (message.role === "system" && message.content.includes("position")) {
-                    const positionMatch = message.content.match(/position[:\s]+([^,\n]+)/i);
-                    if (positionMatch && positionMatch[1]) {
-                        position = positionMatch[1].trim();
-                    }
-                }
-                if (message.role === "user" && message.content.includes("name")) {
-                    const nameMatch = message.content.match(/name[:\s]+([^,\n]+)/i);
-                    if (nameMatch && nameMatch[1]) {
-                        candidateName = nameMatch[1].trim();
-                    }
-                }
-            }
+            // Get values directly from localStorage
+            const candidateName = localStorage.getItem('interviewName') || "Unknown Candidate";
+            const position = localStorage.getItem('interviewPosition') || "Unknown Position";
+            const company = localStorage.getItem('interviewCompany') || "Unknown Company";
             
-            // Format the chat history for the prompt
-            const formattedChatHistory = chatHistory.map(msg => {
-                return `${msg.role.toUpperCase()}: ${msg.content}`;
-            }).join("\n\n");
+            setLoadingProgress(30); // Update progress
             
             // Get API key from import.meta.env (for Vite projects)
-            const apiKey = import.meta.env.VITE_COHERE_API_KEY;
+            const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
             
             if (!apiKey) {
-                console.error("Cohere API key not found in environment variables!");
-                console.log("Make sure you have VITE_COHERE_API_KEY in your .env file");
-                console.log("Using fallback API key for development");
+                console.error("OpenAI API key not found in environment variables!");
+                console.log("Make sure you have VITE_OPENAI_API_KEY in your .env file");
+                setError("API key not found. Please check your environment configuration.");
+                setLoading(false);
+                return;
             }
             
-            // Initialize the Cohere client
-            const cohere = new CohereClientV2({
-                token: apiKey
-            });
+            setLoadingProgress(40); // Update progress
             
-            // Create the prompt with the interview grading scheme
-            const prompt = `
+            // Format the messages for OpenAI's chat completion API
+            const messages = [
+                {
+                    role: "system",
+                    content: `You are an expert interviewer and evaluator. Analyze the interview transcript and generate a comprehensive assessment report.`
+                },
+                {
+                    role: "user",
+                    content: `
 # Interview Analysis Task
 
 ## Interview Information:
 - Position: ${position}
 - Candidate: ${candidateName}
+- Company: ${company}
 - Date: ${new Date().toLocaleDateString()}
 
 ## Interview Transcript:
-${formattedChatHistory}
+${chatHistory.map(msg => `${msg.role.toUpperCase()}: ${msg.content}`).join("\n\n")}
 
 ## Your Task:
-You are an expert interviewer and evaluator. Analyze the above interview transcript and generate a comprehensive assessment report following these guidelines:
+Analyze the above interview transcript and generate a comprehensive assessment report following these guidelines:
 
 1. Evaluate the candidate across these categories:
    - Technical Knowledge (understanding of technologies and concepts)
@@ -119,7 +133,7 @@ You are an expert interviewer and evaluator. Analyze the above interview transcr
 
 4. List 2-4 specific strengths and 2-4 areas for improvement
 
-5. Determine a recommendation status: "Strongly Recommended", "Recommended for next round", "Consider for another role", or "Not recommended"
+5. Determine a recommendation status (select one, without including the company name): "Strongly Recommended", "Recommended for next round", "Consider for another role", or "Not recommended"
 
 6. Calculate an overall score from 0-100 based on performance across all categories
 
@@ -155,73 +169,101 @@ Generate your response as a valid JSON object with the following structure:
   "recommendationStatus": "string"
 }
 
-IMPORTANT: Ensure your response is ONLY the valid JSON object with no additional text before or after it.
-`;
+IMPORTANT: Ensure your response is ONLY the valid JSON object with no additional text before or after it.`
+                }
+            ];
 
-            // Call the generate endpoint with a supported model
-            const response = await cohere.generate({
-                model: "command", // Or a more advanced model if available
-                prompt: prompt,
-                maxTokens: 2000, // Adjust based on expected response length
-                temperature: 0.2, // Lower for more consistent output
-                format: "json", // Request JSON format if API supports it
+            setLoadingProgress(50); // Update progress
+            
+            // Call the OpenAI API
+            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model: 'gpt-4o-mini', // Using GPT-4o mini model
+                    messages: messages,
+                    temperature: 0.2, // Lower temperature for more consistent output
+                    response_format: { type: "json_object" } // Request JSON format
+                })
             });
             
-            console.log("Cohere API response:", response);
+            setLoadingProgress(70); // Update progress
             
-            // Extract the generated text and parse it
-            const generatedText = response.generations?.[0]?.text || "";
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error("OpenAI API error:", errorData);
+                setError(`Error from OpenAI API: ${errorData.error?.message || 'Unknown error'}`);
+                setLoading(false);
+                return;
+            }
+            
+            const data = await response.json();
+            console.log("OpenAI API response:", data);
+            
+            setLoadingProgress(80); // Update progress
+            
+            // Extract the generated text
+            const generatedText = data.choices?.[0]?.message?.content || "";
             console.log("Generated text:", generatedText);
+            
+            setLoadingProgress(90); // Update progress
             
             // Try to parse as JSON
             try {
                 const parsedData = JSON.parse(generatedText);
                 setReportData(parsedData);
+                setLoadingProgress(100); // Complete progress
                 setLoading(false);
             } catch (error) {
-                console.error("Error parsing JSON from Cohere response:", error);
+                console.error("Error parsing JSON from OpenAI response:", error);
                 console.log("Raw response was:", generatedText);
                 setError("Error processing the interview data. Please try again.");
                 setLoading(false);
             }
             
         } catch (error) {
-            console.error("Error fetching Cohere response:", error);
+            console.error("Error fetching OpenAI response:", error);
             setError("Error connecting to the evaluation service. Please try again later.");
             setLoading(false);
         }
     };
 
-    // For testing/development, use this sample data if you want to bypass Cohere
+    // For testing/development, use this sample data if you want to bypass the API
     const useExampleData = () => {
-        // Using the data from Cohere's response
+        // Get values directly from localStorage for the example data
+        const candidateName = localStorage.getItem('interviewName') || "John Doe";
+        const position = localStorage.getItem('interviewPosition') || "Senior Frontend Developer";
+        
         const exampleReport = {
-            "candidateName": "John Doe", // Updated from Unknown Candidate
-            "position": "Senior Frontend Developer", // Updated from Unknown Position
-            "overallScore": 80, // Updated from 60 to average of the two reports
-            "interviewDate": "March 23, 2025", // Formatted date
-            "duration": "45 minutes", // Changed from 1 hour
-            "interviewer": "Sarah Johnson", // Updated from Unknown Interviewer
+            "candidateName": candidateName,
+            "position": position,
+            "overallScore": 80,
+            "interviewDate": "March 23, 2025",
+            "duration": "45 minutes",
+            "interviewer": "Sarah Johnson",
             "summary": "The candidate shows strong technical knowledge with good problem-solving skills. While communication could be improved, they demonstrate a solid understanding of frontend development concepts and frameworks. Their experience is relevant but could benefit from more exposure to large-scale applications.",
             "categories": [
                 {
                     "name": "Technical Knowledge",
-                    "score": 85, // Average of both reports
+                    "score": 85,
                     "feedback": "Strong understanding of fundamental programming concepts with knowledge of several frameworks and languages. Could improve on explaining core assumptions."
                 },
                 {
                     "name": "Problem Solving",
-                    "score": 83, // Average of both reports
+                    "score": 83,
                     "feedback": "Demonstrates a methodical and thoughtful approach to problem-solving, though sometimes overlooks key constraints and assumptions."
                 },
                 {
                     "name": "Communication",
-                    "score": 70, // Same in both reports
+                    "score": 70,
                     "feedback": "Adequate clarity but occasionally struggles to explain complex concepts simply. Would benefit from more comprehensive explanations."
                 },
                 {
                     "name": "Experience",
-                    "score": 63, // Average of both reports
+                    "score": 63,
                     "feedback": "Experience is relevant but could benefit from further discussion of specific projects and outcomes that align with company needs."
                 }
             ],
@@ -270,7 +312,7 @@ IMPORTANT: Ensure your response is ONLY the valid JSON object with no additional
         return exampleReport;
     };
 
-    // If loading data from Cohere fails or for development, use this
+    // If loading data from API fails or for development, use this
     const report = reportData || useExampleData();
 
     // Helper for star ratings
@@ -288,45 +330,98 @@ IMPORTANT: Ensure your response is ONLY the valid JSON object with no additional
         );
     };
 
-    // Show loading state
+    // Show loading state - Using shadcn style loading screen
     if (loading && !reportData) {
         return (
-            <div className="bg-black w-full min-h-screen flex items-center justify-center">
-                <div className="text-blue-300 text-center">
-                    <div className="animate-spin mb-4 mx-auto">
-                        <svg className="w-12 h-12" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                    </div>
-                    <p>Analyzing interview data...</p>
+            <div className="bg-black w-full min-h-screen overflow-x-hidden">
+                <Particles
+                    className="absolute inset-0 z-0"
+                    quantity={25}
+                    ease={100}
+                    color="#ffffff"
+                    refresh
+                />
+                
+                <div className="relative z-10 flex flex-col items-center justify-center min-h-screen p-4">
+                    <Card className="w-full max-w-md bg-gray-900/90 border-blue-900/50">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-xl text-center text-blue-300">
+                                Analyzing Interview
+                            </CardTitle>
+                            <CardDescription className="text-center text-blue-300/70">
+                                Processing candidate responses and generating report
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6 pt-4">
+                            <div className="flex justify-center">
+                                <Loader2 className="h-12 w-12 text-blue-400 animate-spin" />
+                            </div>
+                            
+                            <div className="space-y-2">
+                                <div className="flex justify-between text-xs text-blue-300/70">
+                                    <span>Analysis in progress...</span>
+                                    <span>{loadingProgress}%</span>
+                                </div>
+                                <Progress value={loadingProgress} className="h-1.5 bg-gray-800" />
+                            </div>
+                            
+                            <div className="space-y-3">
+                                <div className="text-xs text-center text-gray-400">
+                                    {loadingProgress < 30 && "Reading interview transcript..."}
+                                    {loadingProgress >= 30 && loadingProgress < 60 && "Evaluating candidate responses..."}
+                                    {loadingProgress >= 60 && loadingProgress < 80 && "Generating assessment metrics..."}
+                                    {loadingProgress >= 80 && "Finalizing report..."}
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
                 </div>
             </div>
         );
     }
 
-    // Show error state
+    // Show error state - Enhanced with shadcn components
     if (error && !reportData) {
         return (
-            <div className="bg-black w-full min-h-screen flex items-center justify-center">
-                <div className="text-red-400 text-center max-w-md p-6 bg-gray-900 rounded-lg border border-red-900/30">
-                    <AlertCircle className="w-12 h-12 mx-auto mb-4" />
-                    <h2 className="text-xl font-bold mb-2">Error</h2>
-                    <p>{error}</p>
-                    <Button 
-                        variant="outline" 
-                        className="mt-4 border-red-500/30 text-red-400 hover:bg-red-950/30"
-                        onClick={() => fetchCohereResponse()}
-                    >
-                        Try Again
-                    </Button>
+            <div className="bg-black w-full min-h-screen overflow-x-hidden">
+                <Particles
+                    className="absolute inset-0 z-0"
+                    quantity={25}
+                    ease={100}
+                    color="#ffffff"
+                    refresh
+                />
+                
+                <div className="relative z-10 flex items-center justify-center min-h-screen p-4">
+                    <Card className="w-full max-w-md bg-gray-900/90 border-red-900/30">
+                        <CardHeader className="pb-2">
+                            <div className="flex justify-center mb-2">
+                                <AlertCircle className="w-12 h-12 text-red-400" />
+                            </div>
+                            <CardTitle className="text-xl text-center text-red-400">
+                                Error Occurred
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4 pt-2">
+                            <p className="text-center text-gray-300 text-sm">{error}</p>
+                        </CardContent>
+                        <CardFooter className="flex justify-center pt-2 pb-6">
+                            <Button 
+                                onClick={() => fetchOpenAIResponse()}
+                                className="bg-red-950/50 text-red-300 hover:bg-red-900/50 border border-red-700/30"
+                            >
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Try Again
+                            </Button>
+                        </CardFooter>
+                    </Card>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="bg-black w-full min-h-screen">
+        <div className="bg-black w-full min-h-screen overflow-x-hidden">
             <Particles
                 className="absolute inset-0 z-0"
                 quantity={50}
@@ -336,11 +431,6 @@ IMPORTANT: Ensure your response is ONLY the valid JSON object with no additional
             />
             
             <div className="relative z-10 container mx-auto px-4 py-8">
-                <BlurFade delay={0.1} inView>
-                    <Button variant="ghost" className="mb-6 text-gray-400 hover:text-white" size="sm">
-                        <ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard
-                    </Button>
-                </BlurFade>
                 
                 <BlurFade delay={0.2} inView>
                     <header className="text-center mb-8">
@@ -350,11 +440,6 @@ IMPORTANT: Ensure your response is ONLY the valid JSON object with no additional
                         <p className="text-gray-400 text-sm">
                             {report.position} | {report.interviewDate}
                         </p>
-                        <div className="flex justify-center mt-2">
-                            <Badge className="bg-blue-900/30 text-blue-300 border-blue-700/50">
-                                {report.interviewer}
-                            </Badge>
-                        </div>
                     </header>
                 </BlurFade>
 
@@ -390,13 +475,13 @@ IMPORTANT: Ensure your response is ONLY the valid JSON object with no additional
                                         </div>
                                     </BlurFade>
                                     
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <BlurFade delay={0.6} inView>
                                             <div className="bg-gray-800 rounded p-3 border border-green-900/30">
                                                 <h3 className="font-medium mb-2 text-sm text-green-300">Strengths</h3>
                                                 <ul className="text-xs space-y-1">
                                                     {report.strengths.map((strength, idx) => (
-                                                        <li key={idx} className="text-gray-300">
+                                                        <li key={idx} className="text-gray-300 break-words">
                                                             {strength}
                                                         </li>
                                                     ))}
@@ -408,7 +493,7 @@ IMPORTANT: Ensure your response is ONLY the valid JSON object with no additional
                                                 <h3 className="font-medium mb-2 text-sm text-amber-300">Areas to Improve</h3>
                                                 <ul className="text-xs space-y-1">
                                                     {report.areasToImprove.map((area, idx) => (
-                                                        <li key={idx} className="text-gray-300">
+                                                        <li key={idx} className="text-gray-300 break-words">
                                                             {area}
                                                         </li>
                                                     ))}
@@ -417,12 +502,12 @@ IMPORTANT: Ensure your response is ONLY the valid JSON object with no additional
                                         </BlurFade>
                                     </div>
                                 </CardContent>
-                                <CardFooter className="border-t border-blue-900/30 pt-3 flex justify-between items-center">
+                                <CardFooter className="border-t border-blue-900/30 pt-3 flex flex-wrap justify-between items-center">
                                     <div className="flex items-center gap-1 text-blue-300/70">
-                                        <Clock size={14} />
-                                        <span className="text-xs">{report.duration}</span>
+                                        <Building2 size={14} />
+                                        <span className="text-xs">{localStorage.getItem('interviewCompany') || "Unknown Company"}</span>
                                     </div>
-                                    <Badge className="text-xs py-0.5 bg-blue-900/70 text-blue-100 border-blue-700">
+                                    <Badge className="text-xs py-0.5 bg-blue-900/70 text-blue-100 border-blue-700 mt-2 sm:mt-0">
                                         {report.recommendationStatus}
                                     </Badge>
                                 </CardFooter>
@@ -472,13 +557,15 @@ IMPORTANT: Ensure your response is ONLY the valid JSON object with no additional
                                         <BlurFade key={idx} delay={0.9 + (idx * 0.1)} inView>
                                             <Card className="bg-gray-900 border-blue-900/30">
                                                 <CardHeader className="pb-1">
-                                                    <div className="flex justify-between items-center">
-                                                        <CardTitle className="text-xs text-blue-200">{q.question}</CardTitle>
-                                                        <StarRating rating={q.rating} />
+                                                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+                                                        <CardTitle className="text-xs text-blue-200 break-words">{q.question}</CardTitle>
+                                                        <div className="flex-shrink-0">
+                                                            <StarRating rating={q.rating} />
+                                                        </div>
                                                     </div>
                                                 </CardHeader>
                                                 <CardContent>
-                                                    <p className="text-gray-300 text-xs">{q.notes}</p>
+                                                    <p className="text-gray-300 text-xs break-words">{q.notes}</p>
                                                 </CardContent>
                                             </Card>
                                         </BlurFade>
@@ -494,7 +581,7 @@ IMPORTANT: Ensure your response is ONLY the valid JSON object with no additional
                                                     <CardTitle className="text-xs text-blue-200">{category.name}</CardTitle>
                                                 </CardHeader>
                                                 <CardContent>
-                                                    <p className="text-gray-300 text-xs">{category.feedback}</p>
+                                                    <p className="text-gray-300 text-xs break-words">{category.feedback}</p>
                                                 </CardContent>
                                             </Card>
                                         </BlurFade>
