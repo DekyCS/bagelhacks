@@ -9,6 +9,7 @@
 .env.development.local
 .env.test.local
 .env.production.local
+backend/.venv
 
 # Node.js dependencies - ignores in all directories
 node_modules/
