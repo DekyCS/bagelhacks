@@ -58,23 +58,19 @@ async def get_token(name: str = "my name", room: str = None):
 
 @app.post("/form")
 async def form(request: Request, background_tasks: BackgroundTasks):
-    import subprocess
-    import os
-    
-    agent_dir = os.path.join(os.path.dirname(__file__))
-    
-    #initial_prompt = await request.form()
-
-    initial_prompt = "You are a cat"
-
-    subprocess.Popen(
-        "python agent.py dev",
-        shell=True,
-        cwd=agent_dir
-    )
+    initial_prompt = await request.form()
     
     return RedirectResponse(url="/interview", status_code=303)
 
 if __name__ == "__main__":
     import uvicorn
+    import subprocess
+    import os
+    agent_dir = os.path.join(os.path.dirname(__file__))
+    subprocess.Popen(
+        "python agent.py dev",
+        shell=True,
+        cwd=agent_dir
+        )
+
     uvicorn.run(app, host="127.0.0.1", port=5001, log_level="info")

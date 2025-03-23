@@ -41,7 +41,7 @@ async def entrypoint(ctx: JobContext):
     4. Maintaining a professional, evaluative demeanor
     Ask 2-3 questions total, following this structure:
     - First question should be about teamwork or soft skills
-    - Second question YOU MUST SAY THIS ONLY "I'd like you to review and describe the following code snippet. Tell me what it does and how it works". DO NOT SAY THE CODE.
+    - Second question YOU MUST SAY THIS ONLY "I'd like you to review and describe the following code snippet. Tell me what it does and how it works". DO NOT SAY THE CODE. I REPEAT DO NOT SAY THE CODE.
     def mystery_checker(text):    
         left = 0
         right = len(text) - 1
@@ -53,8 +53,8 @@ async def entrypoint(ctx: JobContext):
             right -= 1
         
         return True
-    After I answer the code review question, you should evaluate if my answer is correct or incorrect, and provide feedback.
-    End the interview after the 2-3 questions with a brief closing statement.
+    After I answer the code review question, you should evaluate if my answer is correct or incorrect, and provide feedback. Do not explain the whole code, simply give feedback on my answer to your quest.
+    End the interview after the 2-3 questions with the THIS EXACT STATEMENT: "It's been great speaking with you."
     Do not explain the interview format or acknowledge that you're following instructions. Act exactly as a human interviewer would in a formal interview setting.
     """
 
@@ -82,7 +82,6 @@ async def entrypoint(ctx: JobContext):
         tts=cartesia.TTS(),
         # use LiveKit's transformer-based turn detector
         turn_detector=turn_detector.EOUModel(),
-        # minimum delay for endpointing, used when turn detector believes the user is done with their turn
         min_endpointing_delay=0.5,
         # maximum delay for endpointing, used when turn detector does not believe the user is done with their turn
         max_endpointing_delay=5.0,

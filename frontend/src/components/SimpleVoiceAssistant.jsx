@@ -89,19 +89,8 @@ const textToVisemes = (text) => {
 // Helper function to save chat history to a file
 const saveChatHistory = (chatHistory) => {
   try {
-    // In a real implementation, you would use a server endpoint to write to a file
-    // For now, we'll log to console and use localStorage as a demo
-    console.log("Saving chat history:", chatHistory);
     localStorage.setItem('interviewChatHistory', JSON.stringify(chatHistory));
     
-    // In a production environment, you would use something like:
-    // fetch('/api/saveChatHistory', {
-    //   method: 'POST',
-    //   headers: {
-    //     'Content-Type': 'application/json',
-    //   },
-    //   body: JSON.stringify(chatHistory),
-    // });
   } catch (error) {
     console.error("Error saving chat history:", error);
   }
@@ -116,8 +105,6 @@ const SimpleVoiceAssistant = () => {
     participant: localParticipant.localParticipant,
   });
 
-  // State for messages
-  const [messages, setMessages] = useState([]);
   const [latestAgentMessage, setLatestAgentMessage] = useState(null);
   
   // Ref to track when speech begins
@@ -147,6 +134,15 @@ const SimpleVoiceAssistant = () => {
       }));
     }
   };
+
+  // New function to check for "technical question" phrase
+  const checkForCloseSentence = (text) => {
+    if (text && text.trim().toLowerCase().includes("it's been great speaking with you.")) {
+      console.log("closing");
+      window.location.href = '/report';
+    }
+  };
+  
 
   // Handle state changes (speaking/not speaking)
   useEffect(() => {
@@ -217,6 +213,8 @@ const SimpleVoiceAssistant = () => {
       
       // Check if this is a technical question
       checkForTechnicalQuestion(latest.text);
+
+      checkForCloseSentence(latest.text);
       
       // Add to chat history
       setChatHistory(prev => {
